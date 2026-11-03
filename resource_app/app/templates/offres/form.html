@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% from "partials/_macros.html" import field, select_field %}
+{% block title %}{{ title }}{% endblock %}
+{% block content %}
+<h1 class="h3 mb-3">{{ title }}</h1>
+<p class="text-muted">L'offre est publiée par l'entreprise active, qui doit être propriétaire de la ressource.</p>
+<form method="post" class="card kpi-card p-3" style="max-width: 36rem;">
+  {{ form.hidden_tag() }}
+  {{ select_field(form.id_ressource) }}
+  {{ field(form.quantite_proposee) }}
+  {{ field(form.prix) }}
+  {{ form.submit(class="btn btn-primary") }}
+  <a class="btn btn-link" href="{{ url_for('offres.list_offres') }}">Annuler</a>
+</form>
+{% endblock %}

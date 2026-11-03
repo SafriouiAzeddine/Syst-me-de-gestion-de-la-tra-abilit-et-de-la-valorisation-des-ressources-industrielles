@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% from "partials/_macros.html" import render_pagination %}
+{% block title %}Matériaux{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h1 class="h3 mb-0">Matériaux</h1>
+  <a class="btn btn-primary" href="{{ url_for('materiaux.create') }}">Nouveau matériau</a>
+</div>
+<form class="row g-2 mb-3" method="get">
+  <div class="col-md-6"><input class="form-control" name="q" value="{{ q }}" placeholder="Rechercher"></div>
+  <div class="col-auto"><button class="btn btn-outline-secondary">Filtrer</button></div>
+</form>
+<div class="table-responsive">
+<table class="table table-hover bg-white">
+  <thead><tr><th>Nom</th><th>Catégorie</th><th>Propriétés</th><th></th></tr></thead>
+  <tbody>
+  {% for m in pagination.items %}
+    <tr>
+      <td>{{ m.nom }}</td>
+      <td>{{ m.categorie or "—" }}</td>
+      <td>{{ m.proprietes or "—" }}</td>
+      <td class="text-end">
+        <a class="btn btn-sm btn-outline-primary" href="{{ url_for('materiaux.edit', id_materiau=m.id_materiau) }}">Modifier</a>
+        <form class="d-inline" method="post" action="{{ url_for('materiaux.delete', id_materiau=m.id_materiau) }}" onsubmit="return confirm('Supprimer ce matériau ?');">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <button class="btn btn-sm btn-outline-danger">Supprimer</button>
+        </form>
+      </td>
+    </tr>
+  {% else %}
+    <tr><td colspan="4" class="text-muted">Aucun matériau</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{{ render_pagination(pagination) }}
+{% endblock %}

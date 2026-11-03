@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block title %}Transaction #{{ tx.id_transaction }}{% endblock %}
+{% block content %}
+<h1 class="h3">Transaction #{{ tx.id_transaction }}</h1>
+<dl class="row">
+  <dt class="col-sm-3">Date</dt><dd class="col-sm-9">{{ tx.date_transaction }}</dd>
+  <dt class="col-sm-3">Ressource</dt>
+  <dd class="col-sm-9"><a href="{{ url_for('ressources.passport', id_ressource=tx.id_ressource) }}">#{{ tx.id_ressource }}</a></dd>
+  <dt class="col-sm-3">Vendeur</dt><dd class="col-sm-9">{{ tx.vendeur.nom }}</dd>
+  <dt class="col-sm-3">Acheteur</dt><dd class="col-sm-9">{{ tx.acheteur.nom }}</dd>
+  <dt class="col-sm-3">Quantité</dt><dd class="col-sm-9">{{ tx.quantite }}</dd>
+  <dt class="col-sm-3">Prix</dt><dd class="col-sm-9">{{ tx.prix }}</dd>
+</dl>
+<p class="text-muted">Les transactions ne sont ni modifiables ni supprimables depuis l'application.</p>
+{% endblock %}

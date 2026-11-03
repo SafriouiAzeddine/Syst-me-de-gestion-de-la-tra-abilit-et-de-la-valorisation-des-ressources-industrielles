@@ -1,0 +1,191 @@
+{% extends "base.html" %}
+{% block title %}Rapports{% endblock %}
+{% block content %}
+<h1 class="h3 mb-4">Rapports métier</h1>
+
+<section class="card kpi-card mb-4">
+  <div class="card-body">
+    <h2 class="h5">1. Ressources inutilisées depuis plus de X jours</h2>
+    <p class="small text-muted">Procédure stockée <code>sp_ressources_inutilisees</code>.</p>
+    <form class="row g-2" method="get">
+      <input type="hidden" name="run" value="unused">
+      <div class="col-auto"><input class="form-control" type="number" name="jours" min="1" value="{{ unused_days }}"></div>
+      <div class="col-auto"><button class="btn btn-primary">Exécuter</button></div>
+    </form>
+    {% if unused is not none %}
+    <div class="table-responsive mt-3">
+      <table class="table table-sm">
+        <thead><tr><th>Ressource</th><th>Quantité</th><th>Ville</th><th>Dernier événement</th><th>Jours d'inactivité</th></tr></thead>
+        <tbody>
+        {% for r in unused %}
+          <tr>
+            <td><a href="{{ url_for('ressources.passport', id_ressource=r.id_ressource) }}">#{{ r.id_ressource }}</a></td>
+            <td>{{ r.quantite }} {{ r.unite }}</td>
+            <td>{{ r.localisation_actuelle }}</td>
+            <td>{{ r.dernier_evenement }}</td>
+            <td>{{ r.jours_inactivite }}</td>
+          </tr>
+        {% else %}
+          <tr><td colspan="5" class="text-muted">Aucune ressource inactive sur cette période</td></tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% endif %}
+  </div>
+</section>
+
+<section class="card kpi-card mb-4">
+  <div class="card-body">
+    <h2 class="h5">2. Ressources compatibles avec une demande, dans un rayon X km</h2>
+    <p class="small text-muted">Filtrage de la vue <code>v_matching</code>.</p>
+    <form class="row g-2" method="get">
+      <input type="hidden" name="run" value="compatible">
+      <div class="col-md-4">
+        <select class="form-select" name="id_demande" required>
+          <option value="">Demande</option>
+          {% for d in demandes %}
+            <option value="{{ d.id_demande }}" {% if demand_id == d.id_demande %}selected{% endif %}>#{{ d.id_demande }} — {{ d.entreprise.nom }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-md-3"><input class="form-control" type="number" name="max_km" min="0" step="0.01" placeholder="Distance max (km)" value="{{ max_km or '' }}"></div>
+      <div class="col-auto"><button class="btn btn-primary">Exécuter</button></div>
+    </form>
+    {% if compatible is not none %}
+    <div class="table-responsive mt-3">
+      <table class="table table-sm">
+        <thead><tr><th>Ressource</th><th>Offre</th><th>Matériau</th><th>Distance</th><th>Score</th></tr></thead>
+        <tbody>
+        {% for r in compatible %}
+          <tr>
+            <td>#{{ r.id_ressource }}</td>
+            <td>#{{ r.id_offre }}</td>
+            <td>{{ r.materiau }}</td>
+            <td>{{ r.distance_km }} km</td>
+            <td>{{ r.score_compatibilite }}</td>
+          </tr>
+        {% else %}
+          <tr><td colspan="5" class="text-muted">Aucune ressource compatible</td></tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% endif %}
+  </div>
+</section>
+
+<section class="card kpi-card mb-4">
+  <div class="card-body">
+    <h2 class="h5">3. Historique complet d'une ressource</h2>
+    <p class="small text-muted">Vue <code>v_historique_ressource</code>.</p>
+    <form class="row g-2" method="get">
+      <input type="hidden" name="run" value="historique">
+      <div class="col-md-4">
+        <select class="form-select" name="hist_ressource" required>
+          <option value="">Ressource</option>
+          {% for r in ressources %}
+            <option value="{{ r.id_ressource }}" {% if hist_id == r.id_ressource %}selected{% endif %}>{{ codes.get(r.id_ressource, r.id_ressource) }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-auto"><button class="btn btn-primary">Exécuter</button></div>
+    </form>
+    {% if historique is not none %}
+    <ul class="mt-3">
+      {% for ev in historique %}
+        <li>{{ ev.date_heure }} — {{ TYPE_EVENEMENT_LABELS.get(ev.type, ev.type) }} — {{ ev.acteur }} — {{ ev.description or "" }}</li>
+      {% else %}
+        <li class="text-muted">Aucun événement</li>
+      {% endfor %}
+    </ul>
+    {% endif %}
+  </div>
+</section>
+
+<section class="card kpi-card mb-4">
+  <div class="card-body">
+    <h2 class="h5">4. Ressources ayant changé plusieurs fois de propriétaire</h2>
+    <p class="small text-muted">Vue <code>v_ressources_multi_proprietaires</code>.</p>
+    <div class="table-responsive">
+      <table class="table table-sm">
+        <thead><tr><th>Ressource</th><th>Producteur</th><th>Propriétaire actuel</th><th>Nb changements</th></tr></thead>
+        <tbody>
+        {% for r in multi %}
+          <tr>
+            <td><a href="{{ url_for('ressources.passport', id_ressource=r.id_ressource) }}">#{{ r.id_ressource }}</a></td>
+            <td>{{ r.id_producteur }}</td>
+            <td>{{ r.id_proprietaire }}</td>
+            <td>{{ r.nb_changements }}</td>
+          </tr>
+        {% else %}
+          <tr><td colspan="4" class="text-muted">Aucune ressource n'a encore changé plusieurs fois de propriétaire (le jeu d'essai n'a qu'une vente).</td></tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<section class="card kpi-card mb-4">
+  <div class="card-body">
+    <h2 class="h5">5. Scénarios de seconde vie d'une ressource</h2>
+    <p class="small text-muted">Vue <code>v_comparaison_scenarios</code>.</p>
+    <form class="row g-2" method="get">
+      <input type="hidden" name="run" value="scenarios">
+      <div class="col-md-4">
+        <select class="form-select" name="scen_ressource" required>
+          <option value="">Ressource</option>
+          {% for r in ressources %}
+            <option value="{{ r.id_ressource }}" {% if scen_id == r.id_ressource %}selected{% endif %}>{{ codes.get(r.id_ressource, r.id_ressource) }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-auto"><button class="btn btn-primary">Exécuter</button></div>
+    </form>
+    {% if scen_rows is not none %}
+    <div class="table-responsive mt-3">
+      <table class="table table-sm">
+        <thead><tr><th>Rang</th><th>Type</th><th>Gain net</th><th>Coût</th><th>Valeur</th></tr></thead>
+        <tbody>
+        {% for s in scen_rows %}
+          <tr>
+            <td>{{ s.rang }}</td>
+            <td>{{ TYPE_SCENARIO_LABELS.get(s.type, s.type) }}</td>
+            <td class="gain-net">{{ s.gain_net }}</td>
+            <td>{{ s.cout_estime }}</td>
+            <td>{{ s.valeur_estimee }}</td>
+          </tr>
+        {% else %}
+          <tr><td colspan="5" class="text-muted">Aucun scénario</td></tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% endif %}
+  </div>
+</section>
+
+<section class="card kpi-card mb-4">
+  <div class="card-body">
+    <h2 class="h5">Qualité des données — composition incomplète</h2>
+    <p class="small text-muted">Vue <code>v_composition_incomplete</code> (total ≠ 100 %).</p>
+    <div class="table-responsive">
+      <table class="table table-sm">
+        <thead><tr><th>Ressource</th><th>Total %</th><th></th></tr></thead>
+        <tbody>
+        {% for r in incomplete %}
+          <tr>
+            <td>#{{ r.id_ressource }}</td>
+            <td>{{ r.total_pourcentage }}</td>
+            <td><a href="{{ url_for('ressources.edit', id_ressource=r.id_ressource) }}">Corriger</a></td>
+          </tr>
+        {% else %}
+          <tr><td colspan="3" class="text-muted">Toutes les compositions totalisent 100 %.</td></tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+{% endblock %}

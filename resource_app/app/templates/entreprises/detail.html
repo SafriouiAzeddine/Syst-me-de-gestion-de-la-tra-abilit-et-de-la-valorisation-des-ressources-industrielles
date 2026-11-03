@@ -1,0 +1,88 @@
+{% extends "base.html" %}
+{% from "partials/_macros.html" import status_badge %}
+{% block title %}{{ entreprise.nom }}{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-start mb-3">
+  <div>
+    <h1 class="h3 mb-1">{{ entreprise.nom }}</h1>
+    <p class="text-muted mb-0">{{ entreprise.secteur or "Secteur non renseigné" }} — {{ entreprise.ville }}</p>
+  </div>
+  <div>
+    <a class="btn btn-outline-primary" href="{{ url_for('entreprises.edit', id_entreprise=entreprise.id_entreprise) }}">Modifier</a>
+    <form class="d-inline" method="post" action="{{ url_for('entreprises.delete', id_entreprise=entreprise.id_entreprise) }}" onsubmit="return confirm('Supprimer cette entreprise ?');">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <button class="btn btn-outline-danger">Supprimer</button>
+    </form>
+  </div>
+</div>
+
+<h2 class="h5 mt-4">Rôles</h2>
+<ul>
+  {% for j in entreprise.jouers %}
+    <li>{{ j.role.libelle }} (depuis {{ j.date_debut }})</li>
+  {% else %}<li class="text-muted">Aucun rôle</li>{% endfor %}
+</ul>
+
+<div class="row g-3">
+  <div class="col-md-6">
+    <div class="card kpi-card"><div class="card-body">
+      <h2 class="h6">Ressources produites</h2>
+      <ul class="mb-0">
+        {% for r in entreprise.ressources_produites %}
+          <li><a href="{{ url_for('ressources.passport', id_ressource=r.id_ressource) }}">#{{ r.id_ressource }}</a> {{ status_badge(r.statut) }}</li>
+        {% else %}<li class="text-muted">Aucune</li>{% endfor %}
+      </ul>
+    </div></div>
+  </div>
+  <div class="col-md-6">
+    <div class="card kpi-card"><div class="card-body">
+      <h2 class="h6">Ressources détenues</h2>
+      <ul class="mb-0">
+        {% for r in entreprise.ressources_possedees %}
+          <li><a href="{{ url_for('ressources.passport', id_ressource=r.id_ressource) }}">#{{ r.id_ressource }}</a> {{ status_badge(r.statut) }}</li>
+        {% else %}<li class="text-muted">Aucune</li>{% endfor %}
+      </ul>
+    </div></div>
+  </div>
+  <div class="col-md-6">
+    <div class="card kpi-card"><div class="card-body">
+      <h2 class="h6">Offres</h2>
+      <ul class="mb-0">
+        {% for o in entreprise.offres %}
+          <li>#{{ o.id_offre }} — {{ o.quantite_proposee }} / {{ o.prix }} {{ status_badge(o.statut) }}</li>
+        {% else %}<li class="text-muted">Aucune</li>{% endfor %}
+      </ul>
+    </div></div>
+  </div>
+  <div class="col-md-6">
+    <div class="card kpi-card"><div class="card-body">
+      <h2 class="h6">Demandes</h2>
+      <ul class="mb-0">
+        {% for d in entreprise.demandes %}
+          <li>#{{ d.id_demande }} {{ status_badge(d.statut) }}</li>
+        {% else %}<li class="text-muted">Aucune</li>{% endfor %}
+      </ul>
+    </div></div>
+  </div>
+  <div class="col-md-6">
+    <div class="card kpi-card"><div class="card-body">
+      <h2 class="h6">Ventes</h2>
+      <ul class="mb-0">
+        {% for t in entreprise.ventes %}
+          <li><a href="{{ url_for('transactions.detail', id_transaction=t.id_transaction) }}">#{{ t.id_transaction }}</a></li>
+        {% else %}<li class="text-muted">Aucune</li>{% endfor %}
+      </ul>
+    </div></div>
+  </div>
+  <div class="col-md-6">
+    <div class="card kpi-card"><div class="card-body">
+      <h2 class="h6">Achats</h2>
+      <ul class="mb-0">
+        {% for t in entreprise.achats %}
+          <li><a href="{{ url_for('transactions.detail', id_transaction=t.id_transaction) }}">#{{ t.id_transaction }}</a></li>
+        {% else %}<li class="text-muted">Aucune</li>{% endfor %}
+      </ul>
+    </div></div>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,89 @@
+{% extends "base.html" %}
+{% from "partials/_macros.html" import render_pagination %}
+{% block title %}Matching{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h1 class="h3 mb-0">Matching</h1>
+  <form method="post" action="{{ url_for('matching.enregistrer') }}">
+    {{ confirm_form.hidden_tag() }}
+    <button class="btn btn-primary" name="submit" value="1">Enregistrer les correspondances</button>
+  </form>
+</div>
+
+<div class="alert alert-info">
+  <strong>Comment le score est calculé (sur 100)</strong> :
+  40 points de proximité (plus la distance est faible par rapport à <em>distance_max</em>),
+  30 points de qualité de la ressource, 30 points pour la part du matériau dans la ressource.
+</div>
+
+<form class="row g-2 mb-3" method="get">
+  <div class="col-md-3">
+    <select class="form-select" name="demande">
+      <option value="">Demande</option>
+      {% for d in demandes %}
+        <option value="{{ d.id_demande }}" {% if filters.demande == d.id_demande %}selected{% endif %}>#{{ d.id_demande }} — {{ d.entreprise.nom }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div class="col-md-3">
+    <select class="form-select" name="materiau">
+      <option value="">Matériau</option>
+      {% for m in materiaux %}
+        <option value="{{ m.nom }}" {% if filters.materiau == m.nom %}selected{% endif %}>{{ m.nom }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div class="col-md-3">
+    <input class="form-control" type="number" name="score_min" min="0" max="100" step="0.01" placeholder="Score min" value="{{ filters.score_min or '' }}">
+  </div>
+  <div class="col-auto"><button class="btn btn-outline-secondary">Filtrer</button></div>
+</form>
+
+<h2 class="h5">Vue v_matching</h2>
+<div class="table-responsive">
+<table class="table table-hover bg-white align-middle">
+  <thead><tr><th>Offre</th><th>Demande</th><th>Matériau</th><th>Entreprises</th><th>Distance</th><th>Score</th><th></th></tr></thead>
+  <tbody>
+  {% for r in pagination.items %}
+    <tr>
+      <td>#{{ r.id_offre }}</td>
+      <td>#{{ r.id_demande }}</td>
+      <td>{{ r.materiau }}</td>
+      <td>{{ r.entreprise_offre }} → {{ r.entreprise_demande }}</td>
+      <td>{{ r.distance_km }} km</td>
+      <td>
+        <div class="progress" style="min-width: 8rem;">
+          <div class="progress-bar {% if r.score_compatibilite >= 70 %}bg-success{% elif r.score_compatibilite >= 40 %}bg-warning text-dark{% else %}bg-danger{% endif %}" style="width: {{ r.score_compatibilite }}%">{{ r.score_compatibilite }}</div>
+        </div>
+      </td>
+      <td><a class="btn btn-sm btn-primary" href="{{ url_for('transactions.create', offre=r.id_offre, demande=r.id_demande) }}">Créer la transaction</a></td>
+    </tr>
+  {% else %}
+    <tr><td colspan="7" class="text-muted">Aucune paire compatible</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{{ render_pagination(pagination) }}
+
+<h2 class="h5 mt-4" id="enregistrees">Correspondances enregistrées (CORRESPONDRE)</h2>
+<div class="table-responsive">
+<table class="table table-sm bg-white">
+  <thead><tr><th>Offre</th><th>Demande</th><th>Matériau</th><th>Score</th><th>Distance</th><th></th></tr></thead>
+  <tbody>
+  {% for r in stored %}
+    <tr>
+      <td>#{{ r.id_offre }} ({{ r.entreprise_offre }})</td>
+      <td>#{{ r.id_demande }} ({{ r.entreprise_demande }})</td>
+      <td>{{ r.materiau }}</td>
+      <td>{{ r.score_compatibilite }}</td>
+      <td>{{ r.distance_km }} km</td>
+      <td><a class="btn btn-sm btn-outline-primary" href="{{ url_for('transactions.create', offre=r.id_offre, demande=r.id_demande) }}">Créer la transaction</a></td>
+    </tr>
+  {% else %}
+    <tr><td colspan="6" class="text-muted">Aucune ligne stockée. Cliquez sur « Enregistrer les correspondances ».</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% endblock %}

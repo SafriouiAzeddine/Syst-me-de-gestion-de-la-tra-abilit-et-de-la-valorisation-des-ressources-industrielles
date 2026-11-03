@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% from "partials/_macros.html" import render_pagination %}
+{% block title %}Scénarios{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h1 class="h3 mb-0">Scénarios de seconde vie</h1>
+  <a class="btn btn-primary" href="{{ url_for('scenarios.create') }}">Nouveau scénario</a>
+</div>
+<form class="row g-2 mb-3" method="get">
+  <div class="col-md-4">
+    <select class="form-select" name="ressource">
+      <option value="">Toutes les ressources</option>
+      {% for r in ressources %}
+        <option value="{{ r.id_ressource }}" {% if id_ressource == r.id_ressource %}selected{% endif %}>#{{ r.id_ressource }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div class="col-auto"><button class="btn btn-outline-secondary">Filtrer</button></div>
+</form>
+<div class="table-responsive">
+<table class="table table-hover bg-white">
+  <thead><tr><th>#</th><th>Ressource</th><th>Type</th><th>Coût</th><th>Valeur</th><th></th></tr></thead>
+  <tbody>
+  {% for s in pagination.items %}
+    <tr>
+      <td>{{ s.id_scenario }}</td>
+      <td><a href="{{ url_for('scenarios.compare', id_ressource=s.id_ressource) }}">#{{ s.id_ressource }}</a></td>
+      <td>{{ TYPE_SCENARIO_LABELS.get(s.type, s.type) }}</td>
+      <td>{{ s.cout_estime }}</td>
+      <td>{{ s.valeur_estimee }}</td>
+      <td><a class="btn btn-sm btn-outline-primary" href="{{ url_for('scenarios.compare', id_ressource=s.id_ressource) }}">Comparer</a></td>
+    </tr>
+  {% else %}
+    <tr><td colspan="6" class="text-muted">Aucun scénario</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{{ render_pagination(pagination) }}
+{% endblock %}

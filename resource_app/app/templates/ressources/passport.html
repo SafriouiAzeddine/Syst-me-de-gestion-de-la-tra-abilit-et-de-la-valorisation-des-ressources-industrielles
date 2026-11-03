@@ -1,0 +1,185 @@
+{% extends "base.html" %}
+{% from "partials/_macros.html" import status_badge, field, select_field %}
+{% block title %}Passeport {{ code }}{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-start mb-3">
+  <div>
+    <div class="text-muted small">Passeport numérique</div>
+    <h1 class="h3 passport-code">{{ code }}</h1>
+    <p class="mb-0">{{ ressource.quantite }} {{ ressource.unite }} — {{ status_badge(ressource.statut) }}</p>
+  </div>
+  <a class="btn btn-outline-primary" href="{{ url_for('ressources.edit', id_ressource=ressource.id_ressource) }}">Modifier</a>
+</div>
+
+<ul class="nav nav-tabs" role="tablist">
+  <li class="nav-item"><button class="nav-link active" data-bs-toggle="tab" data-bs-target="#infos">Informations</button></li>
+  <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#composition">Composition</button></li>
+  <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#historique">Historique</button></li>
+  <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#offres">Offres et correspondances</button></li>
+  <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#transactions">Transactions</button></li>
+  <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#scenarios">Scénarios</button></li>
+</ul>
+
+<div class="tab-content bg-white border border-top-0 p-3">
+  <div class="tab-pane fade show active" id="infos">
+    <dl class="row mb-0">
+      <dt class="col-sm-3">Identifiant</dt><dd class="col-sm-9">{{ ressource.id_ressource }}</dd>
+      <dt class="col-sm-3">Quantité</dt><dd class="col-sm-9">{{ ressource.quantite }} {{ ressource.unite }}</dd>
+      <dt class="col-sm-3">Qualité</dt><dd class="col-sm-9">{{ ressource.qualite }} %</dd>
+      <dt class="col-sm-3">Statut</dt><dd class="col-sm-9">{{ status_badge(ressource.statut) }}</dd>
+      <dt class="col-sm-3">Localisation</dt><dd class="col-sm-9">{{ ressource.localisation_actuelle }}</dd>
+      <dt class="col-sm-3">Disponibilité</dt><dd class="col-sm-9">{{ ressource.date_disponibilite or "—" }}</dd>
+      <dt class="col-sm-3">Producteur d'origine</dt>
+      <dd class="col-sm-9"><a href="{{ url_for('entreprises.detail', id_entreprise=ressource.id_producteur) }}">{{ ressource.producteur.nom }}</a></dd>
+      <dt class="col-sm-3">Propriétaire actuel</dt>
+      <dd class="col-sm-9"><a href="{{ url_for('entreprises.detail', id_entreprise=ressource.id_proprietaire) }}">{{ ressource.proprietaire.nom }}</a></dd>
+    </dl>
+  </div>
+
+  <div class="tab-pane fade" id="composition">
+    {% for c in ressource.composers %}
+      <div class="mb-2">
+        <div class="d-flex justify-content-between"><span>{{ c.materiau.nom }}</span><span>{{ c.pourcentage }} %</span></div>
+        <div class="progress"><div class="progress-bar" style="width: {{ c.pourcentage }}%"></div></div>
+      </div>
+    {% else %}
+      <p class="text-muted">Composition non renseignée. <a href="{{ url_for('ressources.edit', id_ressource=ressource.id_ressource) }}">Compléter</a></p>
+    {% endfor %}
+  </div>
+
+  <div class="tab-pane fade" id="historique">
+    <div class="d-flex justify-content-between mb-3">
+      <p class="text-muted mb-0">L'historique n'est ni modifiable ni supprimable (contrainte RG5).</p>
+      <button class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#eventModal">Ajouter un événement</button>
+    </div>
+    <div class="timeline">
+      {% for ev in historique %}
+        <div class="timeline-item">
+          <div class="fw-semibold">
+            <i class="bi {{ EVENT_ICONS.get(ev.type, 'bi-circle') }} me-1"></i>
+            {{ TYPE_EVENEMENT_LABELS.get(ev.type, ev.type) }}
+          </div>
+          <div class="small text-muted">{{ ev.date_heure }} — {{ ev.acteur }}</div>
+          <div>{{ ev.description or "" }}</div>
+        </div>
+      {% else %}
+        <p class="text-muted">Aucun événement</p>
+      {% endfor %}
+    </div>
+  </div>
+
+  <div class="tab-pane fade" id="offres">
+    <h2 class="h6">Offres</h2>
+    <div class="table-responsive">
+      <table class="table table-sm">
+        <thead><tr><th>#</th><th>Quantité</th><th>Prix</th><th>Statut</th></tr></thead>
+        <tbody>
+        {% for o in ressource.offres %}
+          <tr><td>{{ o.id_offre }}</td><td>{{ o.quantite_proposee }}</td><td>{{ o.prix }}</td><td>{{ status_badge(o.statut) }}</td></tr>
+        {% else %}
+          <tr><td colspan="4" class="text-muted">Aucune offre</td></tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <h2 class="h6 mt-3">Correspondances (vue v_matching)</h2>
+    <div class="table-responsive">
+      <table class="table table-sm">
+        <thead><tr><th>Demande</th><th>Entreprise</th><th>Score</th><th>Distance</th></tr></thead>
+        <tbody>
+        {% for m in matches %}
+          <tr>
+            <td>#{{ m.id_demande }}</td>
+            <td>{{ m.entreprise_demande }}</td>
+            <td>{{ m.score_compatibilite }}</td>
+            <td>{{ m.distance_km }} km</td>
+          </tr>
+        {% else %}
+          <tr><td colspan="4" class="text-muted">Aucune correspondance ouverte</td></tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="tab-pane fade" id="transactions">
+    <div class="table-responsive">
+      <table class="table table-sm">
+        <thead><tr><th>Date</th><th>Vendeur</th><th>Acheteur</th><th>Quantité</th><th>Prix</th></tr></thead>
+        <tbody>
+        {% for t in ressource.transactions %}
+          <tr>
+            <td>{{ t.date_transaction }}</td>
+            <td>{{ t.vendeur.nom }}</td>
+            <td>{{ t.acheteur.nom }}</td>
+            <td>{{ t.quantite }}</td>
+            <td>{{ t.prix }}</td>
+          </tr>
+        {% else %}
+          <tr><td colspan="5" class="text-muted">Aucune transaction</td></tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="tab-pane fade" id="scenarios">
+    <p class="small text-muted">Le système propose des options de seconde vie ; il n'impose pas de solution.</p>
+    <a class="btn btn-sm btn-outline-primary mb-3" href="{{ url_for('scenarios.compare', id_ressource=ressource.id_ressource) }}">Page de comparaison</a>
+    <div class="table-responsive">
+      <table class="table table-sm">
+        <thead><tr><th>Rang</th><th>Type</th><th>Coût</th><th>Valeur</th><th>Gain net</th></tr></thead>
+        <tbody>
+        {% for s in scenarios %}
+          <tr {% if s.rang == 1 %}class="table-success"{% endif %}>
+            <td>{% if s.rang == 1 %}<span class="badge text-bg-success">Recommandé</span>{% else %}{{ s.rang }}{% endif %}</td>
+            <td>{{ TYPE_SCENARIO_LABELS.get(s.type, s.type) }}</td>
+            <td>{{ s.cout_estime }}</td>
+            <td>{{ s.valeur_estimee }}</td>
+            <td class="gain-net">{{ s.gain_net }}</td>
+          </tr>
+        {% else %}
+          <tr><td colspan="5" class="text-muted">Aucun scénario</td></tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <canvas id="chartScenarios" height="120"></canvas>
+  </div>
+</div>
+
+<div class="modal fade" id="eventModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <form method="post" action="{{ url_for('ressources.add_event', id_ressource=ressource.id_ressource) }}">
+        <div class="modal-header">
+          <h2 class="modal-title h5">Ajouter un événement</h2>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          {{ event_form.hidden_tag() }}
+          {{ select_field(event_form.type) }}
+          {{ field(event_form.date_heure) }}
+          {{ field(event_form.description) }}
+          <p class="small text-muted mb-0">Les types production, vente et changement de localisation sont automatiques.</p>
+        </div>
+        <div class="modal-footer">{{ event_form.submit(class="btn btn-primary") }}</div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+  const rows = {{ scenarios|tojson }};
+  renderScenarioChart(
+    rows.map((r) => r.type),
+    rows.map((r) => Number(r.cout_estime)),
+    rows.map((r) => Number(r.valeur_estimee))
+  );
+  if (window.location.hash === "#historique") {
+    const tab = document.querySelector('[data-bs-target="#historique"]');
+    if (tab) new bootstrap.Tab(tab).show();
+  }
+</script>
+{% endblock %}

@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% from "partials/_macros.html" import render_pagination %}
+{% block title %}Rôles{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h1 class="h3 mb-0">Rôles</h1>
+  <a class="btn btn-primary" href="{{ url_for('roles.create') }}">Nouveau rôle</a>
+</div>
+<form class="row g-2 mb-3" method="get">
+  <div class="col-md-6"><input class="form-control" name="q" value="{{ q }}" placeholder="Rechercher"></div>
+  <div class="col-auto"><button class="btn btn-outline-secondary">Filtrer</button></div>
+</form>
+<div class="table-responsive">
+<table class="table table-hover bg-white">
+  <thead><tr><th>Libellé</th><th></th></tr></thead>
+  <tbody>
+  {% for r in pagination.items %}
+    <tr>
+      <td>{{ r.libelle }}</td>
+      <td class="text-end">
+        <a class="btn btn-sm btn-outline-primary" href="{{ url_for('roles.edit', id_role=r.id_role) }}">Modifier</a>
+        <form class="d-inline" method="post" action="{{ url_for('roles.delete', id_role=r.id_role) }}" onsubmit="return confirm('Supprimer ce rôle ?');">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <button class="btn btn-sm btn-outline-danger">Supprimer</button>
+        </form>
+      </td>
+    </tr>
+  {% else %}
+    <tr><td colspan="2" class="text-muted">Aucun rôle</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{{ render_pagination(pagination) }}
+{% endblock %}

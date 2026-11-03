@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% from "partials/_macros.html" import render_pagination %}
+{% block title %}Entreprises{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h1 class="h3 mb-0">Entreprises</h1>
+  <a class="btn btn-primary" href="{{ url_for('entreprises.create') }}">Nouvelle entreprise</a>
+</div>
+<form class="row g-2 mb-3" method="get">
+  <div class="col-md-6">
+    <input class="form-control" name="q" value="{{ q }}" placeholder="Rechercher (nom, secteur, ville)">
+  </div>
+  <div class="col-auto"><button class="btn btn-outline-secondary">Filtrer</button></div>
+</form>
+<div class="table-responsive">
+<table class="table table-hover align-middle bg-white">
+  <thead><tr><th>Nom</th><th>Secteur</th><th>Ville</th><th></th></tr></thead>
+  <tbody>
+  {% for e in pagination.items %}
+    <tr>
+      <td><a href="{{ url_for('entreprises.detail', id_entreprise=e.id_entreprise) }}">{{ e.nom }}</a></td>
+      <td>{{ e.secteur or "—" }}</td>
+      <td>{{ e.ville }}</td>
+      <td class="text-end">
+        <a class="btn btn-sm btn-outline-primary" href="{{ url_for('entreprises.edit', id_entreprise=e.id_entreprise) }}">Modifier</a>
+      </td>
+    </tr>
+  {% else %}
+    <tr><td colspan="4" class="text-muted">Aucune entreprise</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{{ render_pagination(pagination) }}
+{% endblock %}

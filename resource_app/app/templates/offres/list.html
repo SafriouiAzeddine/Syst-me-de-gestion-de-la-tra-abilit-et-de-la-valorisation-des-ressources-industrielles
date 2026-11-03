@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% from "partials/_macros.html" import render_pagination, status_badge %}
+{% block title %}Offres{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h1 class="h3 mb-0">Offres</h1>
+  <a class="btn btn-primary" href="{{ url_for('offres.create') }}">Nouvelle offre</a>
+</div>
+<form class="row g-2 mb-3" method="get">
+  <div class="col-md-3">
+    <select class="form-select" name="statut">
+      <option value="">Statut</option>
+      {% for s in statuts %}<option value="{{ s }}" {% if filters.statut == s %}selected{% endif %}>{{ STATUT_LABELS.get(s, s) }}</option>{% endfor %}
+    </select>
+  </div>
+  <div class="col-md-3">
+    <select class="form-select" name="materiau">
+      <option value="">Matériau</option>
+      {% for m in materiaux %}<option value="{{ m.id_materiau }}" {% if filters.materiau == m.id_materiau %}selected{% endif %}>{{ m.nom }}</option>{% endfor %}
+    </select>
+  </div>
+  <div class="col-md-3">
+    <select class="form-select" name="entreprise">
+      <option value="">Entreprise</option>
+      {% for e in entreprises %}<option value="{{ e.id_entreprise }}" {% if filters.entreprise == e.id_entreprise %}selected{% endif %}>{{ e.nom }}</option>{% endfor %}
+    </select>
+  </div>
+  <div class="col-auto"><button class="btn btn-outline-secondary">Filtrer</button></div>
+</form>
+<div class="table-responsive">
+<table class="table table-hover bg-white align-middle">
+  <thead><tr><th>#</th><th>Ressource</th><th>Entreprise</th><th>Quantité</th><th>Prix</th><th>Statut</th><th>Demandes compatibles</th><th></th></tr></thead>
+  <tbody>
+  {% for o in pagination.items %}
+    <tr>
+      <td>{{ o.id_offre }}</td>
+      <td><a href="{{ url_for('ressources.passport', id_ressource=o.id_ressource) }}">#{{ o.id_ressource }}</a></td>
+      <td>{{ o.entreprise.nom }}</td>
+      <td>{{ o.quantite_proposee }}</td>
+      <td>{{ o.prix }}</td>
+      <td>{{ status_badge(o.statut) }}</td>
+      <td>{% if o.statut == 'ouverte' %}{{ counts.get(o.id_offre, 0) }}{% else %}—{% endif %}</td>
+      <td>
+        {% if o.statut == 'ouverte' %}
+        <form method="post" action="{{ url_for('offres.change_status', id_offre=o.id_offre) }}" class="d-flex gap-1">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <select class="form-select form-select-sm" name="statut">
+            <option value="cloturee">Clôturer</option>
+            <option value="annulee">Annuler</option>
+            <option value="ouverte">Ouverte</option>
+          </select>
+          <button class="btn btn-sm btn-outline-secondary" name="submit" value="1">OK</button>
+        </form>
+        {% endif %}
+      </td>
+    </tr>
+  {% else %}
+    <tr><td colspan="8" class="text-muted">Aucune offre</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{{ render_pagination(pagination) }}
+{% endblock %}

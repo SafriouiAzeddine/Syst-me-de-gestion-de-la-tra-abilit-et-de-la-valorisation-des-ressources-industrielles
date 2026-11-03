@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% from "partials/_macros.html" import field, select_field %}
+{% block title %}{{ title }}{% endblock %}
+{% block content %}
+<h1 class="h3 mb-3">{{ title }}</h1>
+<form method="post" class="card kpi-card p-3" style="max-width: 40rem;">
+  {{ form.hidden_tag() }}
+  {{ field(form.nom) }}
+  {{ field(form.secteur) }}
+  {{ field(form.ville) }}
+  <div class="mb-3">
+    {{ form.roles.label(class="form-label") }}
+    {{ form.roles(class="form-select", size=6) }}
+    <div class="form-text">Maintenez Ctrl pour sélectionner plusieurs rôles. Au moins un rôle est obligatoire.</div>
+    {% for err in form.roles.errors %}<div class="text-danger small">{{ err }}</div>{% endfor %}
+  </div>
+  {{ field(form.date_debut) }}
+  {{ form.submit(class="btn btn-primary") }}
+  <a class="btn btn-link" href="{{ url_for('entreprises.list_entreprises') }}">Annuler</a>
+</form>
+{% endblock %}

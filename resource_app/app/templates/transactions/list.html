@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% from "partials/_macros.html" import render_pagination %}
+{% block title %}Transactions{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h1 class="h3 mb-0">Transactions</h1>
+  <a class="btn btn-primary" href="{{ url_for('transactions.create') }}">Nouvelle transaction</a>
+</div>
+<form class="row g-2 mb-3" method="get">
+  <div class="col-md-6"><input class="form-control" name="q" value="{{ q }}" placeholder="Rechercher un vendeur ou un acheteur"></div>
+  <div class="col-auto"><button class="btn btn-outline-secondary">Filtrer</button></div>
+</form>
+<div class="table-responsive">
+<table class="table table-hover bg-white">
+  <thead><tr><th>#</th><th>Date</th><th>Ressource</th><th>Vendeur</th><th>Acheteur</th><th>Quantité</th><th>Prix</th></tr></thead>
+  <tbody>
+  {% for t in pagination.items %}
+    <tr>
+      <td><a href="{{ url_for('transactions.detail', id_transaction=t.id_transaction) }}">{{ t.id_transaction }}</a></td>
+      <td>{{ t.date_transaction }}</td>
+      <td><a href="{{ url_for('ressources.passport', id_ressource=t.id_ressource) }}">#{{ t.id_ressource }}</a></td>
+      <td>{{ t.vendeur.nom }}</td>
+      <td>{{ t.acheteur.nom }}</td>
+      <td>{{ t.quantite }}</td>
+      <td>{{ t.prix }}</td>
+    </tr>
+  {% else %}
+    <tr><td colspan="7" class="text-muted">Aucune transaction</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{{ render_pagination(pagination) }}
+{% endblock %}

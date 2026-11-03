@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+{% block title %}Page introuvable{% endblock %}
+{% block content %}
+<div class="text-center py-5">
+  <h1 class="display-6">404</h1>
+  <p class="text-muted">La page demandée n'existe pas.</p>
+  <a class="btn btn-primary" href="{{ url_for('dashboard.index') }}">Retour au tableau de bord</a>
+</div>
+{% endblock %}

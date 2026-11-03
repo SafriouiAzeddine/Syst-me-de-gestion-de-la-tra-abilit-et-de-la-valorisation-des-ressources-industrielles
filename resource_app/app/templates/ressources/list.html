@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% from "partials/_macros.html" import render_pagination, status_badge %}
+{% block title %}Ressources{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h1 class="h3 mb-0">Ressources</h1>
+  <a class="btn btn-primary" href="{{ url_for('ressources.create') }}">Nouvelle ressource</a>
+</div>
+<form class="row g-2 mb-3" method="get">
+  <div class="col-md-2">
+    <select class="form-select" name="statut">
+      <option value="">Statut</option>
+      {% for s in statuts %}<option value="{{ s }}" {% if filters.statut == s %}selected{% endif %}>{{ STATUT_LABELS.get(s, s) }}</option>{% endfor %}
+    </select>
+  </div>
+  <div class="col-md-2">
+    <select class="form-select" name="materiau">
+      <option value="">Matériau</option>
+      {% for m in materiaux %}<option value="{{ m.id_materiau }}" {% if filters.materiau == m.id_materiau %}selected{% endif %}>{{ m.nom }}</option>{% endfor %}
+    </select>
+  </div>
+  <div class="col-md-2">
+    <select class="form-select" name="owner">
+      <option value="">Propriétaire</option>
+      {% for e in entreprises %}<option value="{{ e.id_entreprise }}" {% if filters.owner == e.id_entreprise %}selected{% endif %}>{{ e.nom }}</option>{% endfor %}
+    </select>
+  </div>
+  <div class="col-md-2">
+    <select class="form-select" name="ville">
+      <option value="">Ville</option>
+      {% for c in cities %}<option value="{{ c }}" {% if filters.ville == c %}selected{% endif %}>{{ c }}</option>{% endfor %}
+    </select>
+  </div>
+  <div class="col-md-1"><input class="form-control" type="number" name="qmin" min="0" max="100" step="0.01" placeholder="Q min" value="{{ filters.qmin or '' }}"></div>
+  <div class="col-md-1"><input class="form-control" type="number" name="qmax" min="0" max="100" step="0.01" placeholder="Q max" value="{{ filters.qmax or '' }}"></div>
+  <div class="col-auto"><button class="btn btn-outline-secondary">Filtrer</button></div>
+</form>
+<div class="table-responsive">
+<table class="table table-hover bg-white align-middle">
+  <thead><tr><th>Passeport</th><th>Quantité</th><th>Qualité</th><th>Statut</th><th>Ville</th><th>Propriétaire</th><th></th></tr></thead>
+  <tbody>
+  {% for r in pagination.items %}
+    <tr>
+      <td class="passport-code"><a href="{{ url_for('ressources.passport', id_ressource=r.id_ressource) }}">{{ codes[r.id_ressource] }}</a></td>
+      <td>{{ r.quantite }} {{ r.unite }}</td>
+      <td>{{ r.qualite }} %</td>
+      <td>{{ status_badge(r.statut) }}</td>
+      <td>{{ r.localisation_actuelle }}</td>
+      <td>{{ r.proprietaire.nom }}</td>
+      <td class="text-end"><a class="btn btn-sm btn-outline-primary" href="{{ url_for('ressources.edit', id_ressource=r.id_ressource) }}">Modifier</a></td>
+    </tr>
+  {% else %}
+    <tr><td colspan="7" class="text-muted">Aucune ressource</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{{ render_pagination(pagination) }}
+{% endblock %}

@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block title %}Comparaison des scénarios{% endblock %}
+{% block content %}
+<h1 class="h3">Scénarios — passeport {{ code }}</h1>
+<p>Le système propose des options de seconde vie et <strong>n'impose pas</strong> de solution. Le rang 1 correspond au meilleur gain net (valeur − coût).</p>
+<a class="btn btn-sm btn-outline-primary mb-3" href="{{ url_for('scenarios.create', ressource=ressource.id_ressource) }}">Ajouter un scénario</a>
+<div class="table-responsive">
+<table class="table bg-white">
+  <thead><tr><th>Rang</th><th>Type</th><th>Coût</th><th>Valeur</th><th>Gain net</th><th>Distance</th><th>Impact</th></tr></thead>
+  <tbody>
+  {% for s in rows %}
+    <tr {% if s.rang == 1 %}class="table-success"{% endif %}>
+      <td>{% if s.rang == 1 %}<span class="badge text-bg-success">Recommandé</span>{% else %}{{ s.rang }}{% endif %}</td>
+      <td>{{ TYPE_SCENARIO_LABELS.get(s.type, s.type) }}</td>
+      <td>{{ s.cout_estime }}</td>
+      <td>{{ s.valeur_estimee }}</td>
+      <td class="gain-net">{{ s.gain_net }}</td>
+      <td>{{ s.distance_km }}</td>
+      <td>{{ s.impact_environnemental }}</td>
+    </tr>
+  {% else %}
+    <tr><td colspan="7" class="text-muted">Aucun scénario pour cette ressource</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+<canvas id="chartScenarios" height="110"></canvas>
+{% endblock %}
+{% block scripts %}
+<script>
+  const rows = {{ rows|tojson }};
+  renderScenarioChart(
+    rows.map((r) => r.type),
+    rows.map((r) => Number(r.cout_estime)),
+    rows.map((r) => Number(r.valeur_estimee))
+  );
+</script>
+{% endblock %}
