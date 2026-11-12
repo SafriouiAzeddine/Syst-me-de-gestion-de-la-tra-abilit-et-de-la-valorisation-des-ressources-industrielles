@@ -25,6 +25,14 @@ Projet réalisé dans le cadre du module *Bases de Données Relationnelles* (Mas
 
 ---
 
+```
+resource_mcd_mysql.sql            (existant : création de la base, triggers, vues, jeu minimal)
+sql/02_donnees_supplementaires.sql
+sql/03_requetes.sql
+sql/04_index_explain.sql
+python/demo_mysql.py
+```
+
 ## Fonctionnalités
 
 | Section | Ce que fait l'application |
@@ -58,6 +66,57 @@ L'application ne se connecte pas avec un compte : l'utilisateur choisit l'**entr
 - Un client MySQL : MySQL Workbench, DBeaver ou la ligne de commande
 
 ## Installation
+
+
+## 1. Installer et démarrer MySQL dans le Codespace
+
+```bash
+sudo apt-get update && sudo apt-get install -y mysql-server
+sudo service mysql start
+sudo mysql -e "ALTER USER 'root'@'localhost' IDENTIFIED WITH mysql_native_password BY 'root'; FLUSH PRIVILEGES;"
+```
+
+(le mot de passe `root` est un exemple ; changez-le si vous voulez)
+
+## 2. Exécuter les scripts dans cet ordre
+
+```bash
+mysql --default-character-set=utf8mb4 -uroot -proot < resource_mcd_mysql.sql
+mysql --default-character-set=utf8mb4 -uroot -proot < sql/02_donnees_supplementaires.sql
+mysql --default-character-set=utf8mb4 -uroot -proot -t < sql/03_requetes.sql
+mysql --default-character-set=utf8mb4 -uroot -proot -t < sql/04_index_explain.sql
+```
+
+- Le script 01 **supprime et recrée** `resource_db`.
+- Le script 04 ajoute ~70 000 lignes de test. Pour revenir à un jeu propre (avant démo Flask par exemple), relancez 01 puis 02.
+- `02` utilise `SET TIMESTAMP` pour dater l'historique dans le passé : il faut un utilisateur comme `root`.
+
+## 3. Lancer le programme Python
+
+```bash
+pip install pymysql
+DB_PASSWORD=root python3 python/demo_mysql.py
+```
+
+Variables possibles : `DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASSWORD`, `DB_NAME`.
+Lancez-le avant le script 04 si vous voulez des résultats lisibles et un jeu de données propre.
+
+## Ce que montre chaque fichier
+
+| Exigence | Fichier |
+|---|---|
+| ≥ 5 lignes par table principale | `02_donnees_supplementaires.sql` (affiche les volumes à la fin) |
+| Sélection/filtrage, jointures, GROUP BY, sous-requêtes, requêtes élaborées | `03_requetes.sql` (sections A à E) |
+| 2 index justifiés + EXPLAIN avant/après | `04_index_explain.sql` |
+| Connexion Python, requêtes, affichage | `demo_mysql.py` |
+
+## Résultats EXPLAIN obtenus (MySQL 8.0, 20 000 entreprises, 50 000 événements)
+
+| Requête | Avant | Après |
+|---|---|---|
+| `WHERE ville = 'Ville_7'` | `type=ALL`, `key=NULL`, `rows≈20 247` | `type=ref`, `key=idx_entreprise_ville`, `rows=400` |
+| `WHERE type='transport' AND date_heure >= NOW()-7j` | `type=ALL`, `key=NULL`, `rows≈49 818` | `type=range`, `key=idx_evenement_type_date`, `rows=122` |
+
 
 ### 1. Récupérer le projet
 
