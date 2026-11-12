@@ -1,3 +1,24 @@
+-- #####################################################################
+--  PROJET RE:SOURCE - SCRIPT SQL COMPLET (MySQL 8.0.16+)
+--  Master Data & IA - Bases de données relationnelles
+--
+--  Exécution : mysql --default-character-set=utf8mb4 -u root -p -t < projet_complet.sql
+--
+--  Correspondance avec les exigences du sujet :
+--   4. MLD (tables, PK, FK, clés composées) ........ PARTIE 1 (en-tête + CREATE TABLE)
+--   5. Implémentation MySQL + contraintes ........... PARTIE 1 (PK, FK, NOT NULL, UNIQUE, CHECK)
+--   6. Peuplement (>= 5 lignes / table principale) .. PARTIE 1 (jeu minimal) + PARTIE 2
+--   7. Triggers (règles métier expliquées) .......... PARTIE 1, section 3
+--   8. Requêtes (filtrage, jointures, GROUP BY,
+--      sous-requêtes, requêtes élaborées) ........... PARTIE 3
+--   9. Index + EXPLAIN avant/après ................... PARTIE 4
+--
+--  ATTENTION : le script supprime et recrée la base resource_db.
+--  La PARTIE 4 ajoute ~70 000 lignes de test (EVENEMENT est immuable) :
+--  pour retrouver un jeu propre, ré-exécuter le script sans la PARTIE 4.
+-- #####################################################################
+
+-- ############ PARTIE 1 : SCHÉMA, TRIGGERS, VUES, PROCÉDURES, JEU MINIMAL ############
 -- =====================================================================
 --  RE:SOURCE - Système de gestion du cycle de vie et de la seconde vie
 --  des ressources secondaires
@@ -557,3 +578,450 @@ SELECT * FROM v_composition_incomplete;
 --   VALUES (10, 100, 2, 2, 2);                                               -- RG6
 -- UPDATE RESSOURCE SET id_producteur = 5 WHERE id_ressource = 2;             -- RG1
 -- INSERT INTO COMPOSER VALUES (2, 3, 50);                                    -- RG4
+
+
+-- =====================================================================
+-- PARTIE 2 : JEU DE DONNÉES COMPLÉMENTAIRE (>= 5 lignes par table principale)
+-- =====================================================================
+USE resource_db;
+
+
+-- ---------- Entreprises (3 nouvelles -> 8 au total) ----------
+INSERT INTO ENTREPRISE (nom, secteur, ville) VALUES
+ ('FerroSteel',   'Métallurgie', 'Fès'),      -- 6
+ ('EcoVerre',     'Verre',       'Agadir'),   -- 7
+ ('TextilRecup',  'Textile',     'Fès');      -- 8
+
+INSERT INTO JOUER (id_entreprise, id_role) VALUES
+ (6,1), (6,3), (7,1), (7,4), (8,1), (8,2), (5,6), (4,1);
+
+-- ---------- Distances pour les nouvelles villes ----------
+INSERT INTO DISTANCE_VILLE (ville_a, ville_b, distance_km) VALUES
+ ('Casablanca','Fès',290),  ('Casablanca','Agadir',510),
+ ('Rabat','Fès',200),       ('Rabat','Agadir',600),
+ ('Tanger','Fès',300),      ('Tanger','Agadir',850),
+ ('Marrakech','Fès',530),   ('Marrakech','Agadir',270),
+ ('Fès','Agadir',780);
+
+-- ---------- Matériaux (3 nouveaux -> 6 au total) ----------
+INSERT INTO MATERIAU (nom, categorie, proprietes) VALUES
+ ('Verre',  'verre',  'Recyclable, fusion à haute température'),  -- 4
+ ('Cuivre', 'métal',  'Excellent conducteur, très recyclable'),   -- 5
+ ('Carton', 'papier', 'Fibres cellulosiques, recyclage papetier');-- 6
+
+-- ---------- Historique daté dans le passé ----------
+-- SET TIMESTAMP fait croire à la session qu'on est à une autre date : les triggers
+-- (événements "production" et "vente") et les valeurs par défaut (CURRENT_DATE)
+-- produisent alors un historique chronologiquement cohérent.
+-- (Nécessite un utilisateur ayant le droit de modifier cette variable, ex. root.)
+
+-- Heure réelle de référence, mémorisée avant tout décalage
+SET @t0 = UNIX_TIMESTAMP();
+
+-- J-40 : création des ressources 3 à 8 (le trigger crée l'événement "production")
+SET TIMESTAMP = @t0 - 40*86400;
+INSERT INTO RESSOURCE (quantite, unite, qualite, statut, localisation_actuelle,
+                       date_disponibilite, id_producteur, id_proprietaire) VALUES
+ (1500, 'kg', 92, 'disponible',        'Fès',        CURRENT_DATE, 6, 6),  -- 3 acier
+ ( 600, 'kg', 88, 'disponible',        'Agadir',     CURRENT_DATE, 7, 7),  -- 4 verre
+ ( 300, 'kg', 97, 'disponible',        'Casablanca', CURRENT_DATE, 1, 1),  -- 5 cuivre
+ (1200, 'kg', 75, 'disponible',        'Fès',        CURRENT_DATE, 8, 8),  -- 6 carton
+ ( 900, 'kg', 90, 'en_transformation', 'Marrakech',  CURRENT_DATE, 4, 4),  -- 7 acier + cuivre
+ (2500, 'kg', 80, 'disponible',        'Rabat',      CURRENT_DATE, 2, 2);  -- 8 PET (reste inactive)
+
+INSERT INTO COMPOSER (id_ressource, id_materiau, pourcentage) VALUES
+ (3, 3, 100),
+ (4, 4, 100),
+ (5, 5, 100),
+ (6, 6, 100),
+ (7, 3,  70), (7, 5, 30),
+ (8, 2, 100);
+
+-- Chaque INSERT dans TRANSACTION déclenche : contrôle du vendeur, changement de
+-- propriétaire, événement "vente" et clôture des offres ouvertes du vendeur.
+SET TIMESTAMP = @t0 - 35*86400;
+INSERT INTO EVENEMENT (type, description, id_ressource, id_entreprise) VALUES
+ ('stockage', 'Stockage en entrepôt sec', 3, 6);
+
+SET TIMESTAMP = @t0 - 30*86400;
+INSERT INTO EVENEMENT (type, description, id_ressource, id_entreprise) VALUES
+ ('controle', 'Contrôle de pureté avant vente', 5, 1);
+
+SET TIMESTAMP = @t0 - 20*86400;
+INSERT INTO TRANSACTION (quantite, prix, id_ressource, id_vendeur, id_acheteur)
+VALUES (300, 25000, 5, 1, 3);          -- cuivre : AluMaroc -> Atlas Transform
+
+SET TIMESTAMP = @t0 - 15*86400;
+INSERT INTO TRANSACTION (quantite, prix, id_ressource, id_vendeur, id_acheteur)
+VALUES (1500, 18000, 3, 6, 4);         -- acier : FerroSteel -> BatiPro
+
+SET TIMESTAMP = @t0 - 12*86400;
+INSERT INTO EVENEMENT (type, description, id_ressource, id_entreprise) VALUES
+ ('decoupe', 'Découpe en plaques de 2 m', 3, 4);
+
+SET TIMESTAMP = @t0 - 9*86400;
+INSERT INTO EVENEMENT (type, description, id_ressource, id_entreprise) VALUES
+ ('transformation', 'Fusion et mise en lingots', 7, 4);
+
+SET TIMESTAMP = @t0 - 7*86400;
+INSERT INTO TRANSACTION (quantite, prix, id_ressource, id_vendeur, id_acheteur)
+VALUES (600, 6000, 4, 7, 2);           -- verre : EcoVerre -> PlastiRecycle
+
+SET TIMESTAMP = @t0 - 6*86400;
+INSERT INTO EVENEMENT (type, description, id_ressource, id_entreprise) VALUES
+ ('controle', 'Analyse de pureté du cuivre', 5, 3);
+
+SET TIMESTAMP = @t0 - 5*86400;
+INSERT INTO TRANSACTION (quantite, prix, id_ressource, id_vendeur, id_acheteur)
+VALUES (1200, 4000, 6, 8, 1);          -- carton : TextilRecup -> AluMaroc
+
+SET TIMESTAMP = @t0 - 4*86400;
+INSERT INTO EVENEMENT (type, description, id_ressource, id_entreprise) VALUES
+ ('transport', 'Livraison Agadir vers Rabat', 4, 5);
+
+SET TIMESTAMP = @t0 - 2*86400;
+INSERT INTO TRANSACTION (quantite, prix, id_ressource, id_vendeur, id_acheteur)
+VALUES (300, 27000, 5, 3, 2);          -- cuivre : Atlas Transform -> PlastiRecycle (2e changement)
+
+SET TIMESTAMP = @t0 - 1*86400;
+INSERT INTO EVENEMENT (type, description, id_ressource, id_entreprise) VALUES
+ ('stockage', 'Mise en stock du carton compacté', 6, 1);
+
+-- Retour à l'heure réelle
+SET TIMESTAMP = DEFAULT;
+
+-- Ressource 1 (créée et vendue à Atlas Transform par le script 01, aujourd'hui) :
+-- contrôle, transport, puis revente à BatiPro (2e changement de propriétaire)
+INSERT INTO EVENEMENT (type, description, id_ressource, id_entreprise) VALUES
+ ('controle',  'Contrôle qualité à réception',     1, 3),
+ ('transport', 'Transport Casablanca vers Tanger', 1, 5);
+INSERT INTO TRANSACTION (quantite, prix, id_ressource, id_vendeur, id_acheteur)
+VALUES (800, 14000, 1, 3, 4);          -- alu : Atlas Transform -> BatiPro
+
+-- ---------- Offres (6 nouvelles -> 8 au total) : le propriétaire actuel publie ----------
+-- Propriétaires actuels : res3=4, res5=2, res6=1, res4=2, res7=4, res8=2
+INSERT INTO OFFRE (date_publication, quantite_proposee, prix, id_entreprise, id_ressource) VALUES
+ (CURRENT_DATE - INTERVAL 3 DAY, 1500, 18500, 4, 3),
+ (CURRENT_DATE - INTERVAL 2 DAY,  300, 26000, 2, 5),
+ (CURRENT_DATE - INTERVAL 2 DAY, 1200,  4500, 1, 6),
+ (CURRENT_DATE - INTERVAL 1 DAY,  600,  6500, 2, 4),
+ (CURRENT_DATE,                   900, 11000, 4, 7),
+ (CURRENT_DATE,                  2500,  9500, 2, 8);
+
+-- ---------- Demandes (5 nouvelles -> 7 au total) ----------
+INSERT INTO DEMANDE (quantite_requise, qualite_min, distance_max, budget, date_limite, id_entreprise, id_materiau) VALUES
+ (1000, 85, 700, 20000, CURRENT_DATE + INTERVAL 45 DAY, 6, 3),  -- FerroSteel veut de l'acier
+ ( 500, 80, 600,  7000, CURRENT_DATE + INTERVAL 45 DAY, 1, 4),  -- AluMaroc veut du verre
+ ( 200, 90, 500, 30000, CURRENT_DATE + INTERVAL 45 DAY, 3, 5),  -- Atlas Transform veut du cuivre
+ (1000, 70, 500,  5000, CURRENT_DATE + INTERVAL 45 DAY, 5, 6),  -- TransLog veut du carton
+ ( 200, 90, 500, 10000, CURRENT_DATE + INTERVAL 45 DAY, 8, 1);  -- TextilRecup veut de l'aluminium
+
+-- La demande n°1 (aluminium) a été satisfaite par la vente de la ressource 1
+UPDATE DEMANDE SET statut = 'satisfaite' WHERE id_demande = 1;
+
+-- ---------- Scénarios de seconde vie (sur plusieurs ressources) ----------
+INSERT INTO SCENARIO (type, cout_estime, valeur_estimee, distance_km, impact_environnemental, id_ressource) VALUES
+ ('reutilisation',  800, 18000, 290,  60, 3),
+ ('recyclage',     2000, 14000, 100, 180, 3),
+ ('recyclage',      900,  7000, 270, 150, 4),
+ ('reutilisation',  300,  6500, 510,  30, 4),
+ ('transformation',1500, 28000,  90,  90, 5),
+ ('recyclage',      600,  4500, 290, 110, 6),
+ ('autre',          400,  3000, 120,  70, 6),
+ ('transformation',2500, 13000, 240, 130, 7),
+ ('recyclage',     1800,  9500,  90, 160, 8);
+
+-- ---------- Vérification des volumes ----------
+SELECT 'ENTREPRISE' AS table_name, COUNT(*) AS nb FROM ENTREPRISE UNION ALL
+SELECT 'ROLE',        COUNT(*) FROM ROLE         UNION ALL
+SELECT 'MATERIAU',    COUNT(*) FROM MATERIAU     UNION ALL
+SELECT 'RESSOURCE',   COUNT(*) FROM RESSOURCE    UNION ALL
+SELECT 'COMPOSER',    COUNT(*) FROM COMPOSER     UNION ALL
+SELECT 'EVENEMENT',   COUNT(*) FROM EVENEMENT    UNION ALL
+SELECT 'OFFRE',       COUNT(*) FROM OFFRE        UNION ALL
+SELECT 'DEMANDE',     COUNT(*) FROM DEMANDE      UNION ALL
+SELECT 'TRANSACTION', COUNT(*) FROM TRANSACTION  UNION ALL
+SELECT 'SCENARIO',    COUNT(*) FROM SCENARIO;
+
+
+-- =====================================================================
+-- PARTIE 3 : REQUÊTES SQL
+-- =====================================================================
+USE resource_db;
+
+
+-- ---------------------------------------------------------------------
+-- A. SÉLECTION ET FILTRAGE
+-- ---------------------------------------------------------------------
+
+-- A1. Ressources disponibles de haute qualité (>= 90), de la meilleure à la moins bonne
+SELECT id_ressource, quantite, unite, qualite, localisation_actuelle
+FROM RESSOURCE
+WHERE statut = 'disponible' AND qualite >= 90
+ORDER BY qualite DESC;
+
+-- A2. Offres ouvertes dont le prix est inférieur à 10 000
+SELECT id_offre, id_ressource, quantite_proposee, prix
+FROM OFFRE
+WHERE statut = 'ouverte' AND prix < 10000
+ORDER BY prix;
+
+-- A3. Entreprises basées à Fès ou Casablanca dont le nom commence par une lettre de A à F
+SELECT id_entreprise, nom, secteur, ville
+FROM ENTREPRISE
+WHERE ville IN ('Fès', 'Casablanca') AND nom BETWEEN 'A' AND 'G'
+ORDER BY nom;
+
+-- ---------------------------------------------------------------------
+-- B. JOINTURES
+-- ---------------------------------------------------------------------
+
+-- B1. Fiche de chaque ressource : producteur d'origine, propriétaire actuel et matériaux
+SELECT r.id_ressource,
+       GROUP_CONCAT(CONCAT(m.nom, ' (', c.pourcentage, '%)') SEPARATOR ' + ') AS composition,
+       p.nom  AS producteur,
+       pr.nom AS proprietaire_actuel,
+       r.localisation_actuelle
+FROM RESSOURCE r
+JOIN ENTREPRISE p   ON p.id_entreprise  = r.id_producteur
+JOIN ENTREPRISE pr  ON pr.id_entreprise = r.id_proprietaire
+JOIN COMPOSER   c   ON c.id_ressource   = r.id_ressource
+JOIN MATERIAU   m   ON m.id_materiau    = c.id_materiau
+GROUP BY r.id_ressource, p.nom, pr.nom, r.localisation_actuelle
+ORDER BY r.id_ressource;
+
+-- B2. Historique des transactions avec vendeur, acheteur et matériau principal
+SELECT t.id_transaction, t.date_transaction,
+       v.nom AS vendeur, a.nom AS acheteur,
+       t.id_ressource, t.quantite, t.prix
+FROM TRANSACTION t
+JOIN ENTREPRISE v ON v.id_entreprise = t.id_vendeur
+JOIN ENTREPRISE a ON a.id_entreprise = t.id_acheteur
+ORDER BY t.date_transaction;
+
+-- B3. LEFT JOIN : toutes les entreprises, avec leurs rôles (même sans rôle)
+SELECT e.nom, e.ville, COALESCE(GROUP_CONCAT(ro.libelle ORDER BY ro.libelle), 'aucun rôle') AS roles
+FROM ENTREPRISE e
+LEFT JOIN JOUER j  ON j.id_entreprise = e.id_entreprise
+LEFT JOIN ROLE  ro ON ro.id_role      = j.id_role
+GROUP BY e.id_entreprise, e.nom, e.ville
+ORDER BY e.nom;
+
+-- ---------------------------------------------------------------------
+-- C. AGRÉGATION AVEC GROUP BY
+-- ---------------------------------------------------------------------
+
+-- C1. Quantité totale de chaque matériau en stock (pondérée par la composition)
+SELECT m.nom AS materiau,
+       COUNT(DISTINCT r.id_ressource)                 AS nb_ressources,
+       ROUND(SUM(r.quantite * c.pourcentage / 100), 2) AS quantite_kg_equivalente
+FROM MATERIAU m
+JOIN COMPOSER  c ON c.id_materiau  = m.id_materiau
+JOIN RESSOURCE r ON r.id_ressource = c.id_ressource
+GROUP BY m.id_materiau, m.nom
+ORDER BY quantite_kg_equivalente DESC;
+
+-- C2. Chiffre d'affaires des ventes par entreprise vendeuse (au moins une vente)
+SELECT v.nom AS vendeur, COUNT(*) AS nb_ventes, SUM(t.prix) AS chiffre_affaires,
+       ROUND(AVG(t.prix), 2) AS prix_moyen
+FROM TRANSACTION t
+JOIN ENTREPRISE v ON v.id_entreprise = t.id_vendeur
+GROUP BY v.id_entreprise, v.nom
+HAVING COUNT(*) >= 1
+ORDER BY chiffre_affaires DESC;
+
+-- C3. Nombre d'événements par type : seuls les types présents au moins 2 fois sont conservés
+SELECT type, COUNT(*) AS nb_evenements
+FROM EVENEMENT
+GROUP BY type
+HAVING COUNT(*) >= 2
+ORDER BY nb_evenements DESC;
+
+-- ---------------------------------------------------------------------
+-- D. SOUS-REQUÊTES
+-- ---------------------------------------------------------------------
+
+-- D1. Sous-requête scalaire : ressources dont la qualité dépasse la moyenne générale
+SELECT id_ressource, quantite, qualite
+FROM RESSOURCE
+WHERE qualite > (SELECT AVG(qualite) FROM RESSOURCE)
+ORDER BY qualite DESC;
+
+-- D2. NOT EXISTS : entreprises qui n'ont jamais réalisé de vente
+SELECT e.id_entreprise, e.nom, e.ville
+FROM ENTREPRISE e
+WHERE NOT EXISTS (SELECT 1 FROM TRANSACTION t WHERE t.id_vendeur = e.id_entreprise);
+
+-- D3. IN : ressources ayant au moins un scénario de type "recyclage"
+SELECT r.id_ressource, r.quantite, r.localisation_actuelle
+FROM RESSOURCE r
+WHERE r.id_ressource IN (SELECT s.id_ressource FROM SCENARIO s WHERE s.type = 'recyclage');
+
+-- ---------------------------------------------------------------------
+-- E. REQUÊTES PLUS ÉLABORÉES
+-- ---------------------------------------------------------------------
+
+-- E1. Bilan financier par entreprise (CTE + jointures + RANK)
+--     ventes, achats, solde net, et classement par solde
+WITH ventes AS (
+    SELECT id_vendeur AS id_entreprise, SUM(prix) AS total_ventes
+    FROM TRANSACTION GROUP BY id_vendeur
+), achats AS (
+    SELECT id_acheteur AS id_entreprise, SUM(prix) AS total_achats
+    FROM TRANSACTION GROUP BY id_acheteur
+)
+SELECT e.nom,
+       COALESCE(v.total_ventes, 0)                           AS ventes,
+       COALESCE(a.total_achats, 0)                           AS achats,
+       COALESCE(v.total_ventes, 0) - COALESCE(a.total_achats, 0) AS solde_net,
+       RANK() OVER (ORDER BY COALESCE(v.total_ventes, 0) - COALESCE(a.total_achats, 0) DESC) AS rang
+FROM ENTREPRISE e
+LEFT JOIN ventes v ON v.id_entreprise = e.id_entreprise
+LEFT JOIN achats a ON a.id_entreprise = e.id_entreprise
+ORDER BY rang;
+
+-- E2. Meilleur scénario de seconde vie par ressource (gain net maximal) avec la vue fournie
+SELECT id_ressource, type AS meilleur_scenario, gain_net, impact_environnemental
+FROM v_comparaison_scenarios
+WHERE rang = 1
+ORDER BY gain_net DESC;
+
+-- E3. Offres ouvertes avec leur meilleure demande compatible (vue v_matching)
+SELECT id_offre, entreprise_offre, materiau, entreprise_demande,
+       distance_km, score_compatibilite
+FROM v_matching
+ORDER BY score_compatibilite DESC;
+
+-- E4. Parcours de chaque ressource : nombre de propriétaires successifs et d'événements
+SELECT r.id_ressource,
+       1 + COUNT(DISTINCT t.id_transaction) AS nb_proprietaires_successifs,
+       (SELECT COUNT(*) FROM EVENEMENT ev WHERE ev.id_ressource = r.id_ressource) AS nb_evenements
+FROM RESSOURCE r
+LEFT JOIN TRANSACTION t ON t.id_ressource = r.id_ressource
+GROUP BY r.id_ressource
+ORDER BY nb_proprietaires_successifs DESC, nb_evenements DESC;
+
+-- E5. Vues de contrôle fournies par le projet
+SELECT * FROM v_ressources_multi_proprietaires;
+SELECT * FROM v_composition_incomplete;
+
+
+-- =====================================================================
+-- PARTIE 4 : INDEXATION ET OPTIMISATION (EXPLAIN avant/après)
+-- =====================================================================
+USE resource_db;
+
+
+-- ---------------------------------------------------------------------
+-- 0. VOLUME DE TEST : sur 8 lignes, MySQL préfère toujours un parcours complet.
+--    On génère donc des données pour que l'index ait un intérêt mesurable.
+-- ---------------------------------------------------------------------
+SET SESSION cte_max_recursion_depth = 60000;
+
+-- 20 000 entreprises réparties sur 50 villes fictives
+INSERT INTO ENTREPRISE (nom, secteur, ville)
+WITH RECURSIVE seq (n) AS (
+    SELECT 1 UNION ALL SELECT n + 1 FROM seq WHERE n < 20000
+)
+SELECT CONCAT('Entreprise_test_', n),
+       ELT(1 + n MOD 4, 'Métallurgie', 'Recyclage', 'BTP', 'Transport'),
+       CONCAT('Ville_', n MOD 50)
+FROM seq;
+
+-- 50 000 événements répartis sur 365 jours, 8 types, sur les 8 ressources réelles
+INSERT INTO EVENEMENT (type, date_heure, description, id_ressource, id_entreprise)
+WITH RECURSIVE seq (n) AS (
+    SELECT 1 UNION ALL SELECT n + 1 FROM seq WHERE n < 50000
+)
+SELECT ELT(1 + n MOD 8, 'production','decoupe','stockage','transport',
+                        'controle','transformation','vente','changement_localisation'),
+       NOW() - INTERVAL (n MOD 365) DAY - INTERVAL (n MOD 86400) SECOND,
+       'Événement généré pour le test de performance',
+       1 + n MOD 8,
+       1 + n MOD 8
+FROM seq;
+
+ANALYZE TABLE ENTREPRISE, EVENEMENT;
+
+-- Index déjà présents avant ce script (pour mémoire)
+SHOW INDEX FROM EVENEMENT;
+SHOW INDEX FROM ENTREPRISE;
+
+-- =====================================================================
+-- INDEX N°1 : ENTREPRISE(ville)
+-- Justification : la ville sert à retrouver les entreprises d'une zone et à calculer
+-- les distances du matching (jointure avec fn_distance, recherche de partenaires proches).
+-- La colonne n'est pas une clé étrangère, donc aucun index n'existe automatiquement.
+-- Sélectivité : 50 villes -> un filtre élimine ~98 % des lignes.
+-- =====================================================================
+-- Requête testée
+EXPLAIN
+SELECT id_entreprise, nom, secteur
+FROM ENTREPRISE
+WHERE ville = 'Ville_7';
+
+-- Mesure du plan réel (nombre de lignes lues, temps)
+EXPLAIN ANALYZE
+SELECT id_entreprise, nom, secteur
+FROM ENTREPRISE
+WHERE ville = 'Ville_7';
+
+-- Création de l'index
+CREATE INDEX idx_entreprise_ville ON ENTREPRISE (ville);
+
+ANALYZE TABLE ENTREPRISE;
+
+-- Même requête après indexation
+EXPLAIN
+SELECT id_entreprise, nom, secteur
+FROM ENTREPRISE
+WHERE ville = 'Ville_7';
+
+EXPLAIN ANALYZE
+SELECT id_entreprise, nom, secteur
+FROM ENTREPRISE
+WHERE ville = 'Ville_7';
+
+-- =====================================================================
+-- INDEX N°2 : EVENEMENT(type, date_heure)  (index composite)
+-- Justification : le suivi demande souvent « les événements d'un type donné sur une
+-- période » (transports des 7 derniers jours, contrôles du mois...), et les rapports
+-- regroupent par type. L'index existant idx_evenement_ressource (id_ressource, date_heure)
+-- commence par id_ressource : il ne sert pas à filtrer d'abord par type.
+-- Ordre des colonnes : l'égalité (type) d'abord, puis la plage (date_heure).
+-- =====================================================================
+EXPLAIN
+SELECT id_evenement, id_ressource, date_heure
+FROM EVENEMENT
+WHERE type = 'transport'
+  AND date_heure >= NOW() - INTERVAL 7 DAY;
+
+EXPLAIN ANALYZE
+SELECT id_evenement, id_ressource, date_heure
+FROM EVENEMENT
+WHERE type = 'transport'
+  AND date_heure >= NOW() - INTERVAL 7 DAY;
+
+CREATE INDEX idx_evenement_type_date ON EVENEMENT (type, date_heure);
+
+ANALYZE TABLE EVENEMENT;
+
+EXPLAIN
+SELECT id_evenement, id_ressource, date_heure
+FROM EVENEMENT
+WHERE type = 'transport'
+  AND date_heure >= NOW() - INTERVAL 7 DAY;
+
+EXPLAIN ANALYZE
+SELECT id_evenement, id_ressource, date_heure
+FROM EVENEMENT
+WHERE type = 'transport'
+  AND date_heure >= NOW() - INTERVAL 7 DAY;
+
+-- =====================================================================
+-- Lecture des résultats : colonnes à comparer dans EXPLAIN
+--   type          ALL (parcours complet)  ->  ref / range (accès par index)
+--   key           NULL                    ->  nom de l'index utilisé
+--   rows          nombre de lignes estimées à lire (doit chuter fortement)
+--   filtered/Extra  "Using where"  ->  "Using index condition"
+-- =====================================================================
